@@ -1,12 +1,5 @@
 #!/usr/bin/env python3
 
-PREFIX_FILE = "common-prefixes-why.txt"
-WORD_LIST = "most-common-10000.txt"
-OPTION = "bruteforce"
-PREFIX = "Why"
-DEPTH = 1
-TIMEOUT = 3
-
 import os
 from json import loads
 from urllib import request
@@ -15,50 +8,69 @@ from itertools import product
 from time import sleep
 from re import sub
 
-def GetSuggestions(query, timeout = 0):
-    sleep(timeout)
-    return loads(request.urlopen("http://suggestqueries.google.com/complete/search?client=firefox&q=" + query).read().decode('utf-8'))[1]
+class GoogleQuery:
 
+    def __init__(self):
+        self.PREFIX_FILE = "common-prefixes-why.txt"
+        self.WORD_LIST = "most-common-10000.txt"
+        self.OPTION = "wordlist"
+        self.PREFIX = "Why"
+        self.DEPTH = 1
+        self.TIMEOUT = 3
 
-def permutations(iterable, r=None):
-    pool = tuple(iterable)
-    n = len(pool)
-    r = n if r is None else r
-    for indices in product(range(n), repeat=r):
-        if len(set(indices)) == r:
-            yield tuple(pool[i] for i in indices)
+    def Query(self, query, timeout = 0):
+        sleep(timeout)
+        return loads(request.urlopen("http://suggestqueries.google.com/complete/search?client=firefox&q=" + query).read().decode('utf-8'))[1]
 
-def BruteForce(depth):
-    for i in permutations(alpha, depth):
-        i = ''.join(i)
-        yield i
+    def permutations(self, iterable, r=None):
+        pool = tuple(iterable)
+        n = len(pool)
+        r = n if r is None else r
+        for indices in product(range(n), repeat=r):
+            if len(set(indices)) == r:
+                yield tuple(pool[i] for i in indices)
 
-def main(option = OPTION, depth = DEPTH, timeout = TIMEOUT, indice = 0):
-    prefix = PREFIX
-    output = open("output.txt", "a")
-    if option == "bruteforce":
-        for i in BruteForce(depth):
-            parsed = (prefix + " " + i + " " + word).replace(" ", "%20")
-            for suggestion in GetSuggestions(query, timeout):
-                print(suggestion)
-                output.write(suggestion + '\n')
-    elif option == "wordlist":
-        common_prefixes = (open(PREFIX_FILE, "r").read()).split('\n')
+    def BruteForce(self, depth):
+        for i in self.permutations(alpha, depth):
+            i = ''.join(i)
+            yield i
+
+    def GetSuggestions(self, indice = 0, option = None, depth = None, timeout = None, prefix = None):
+        if not option:
+            option = self.OPTION
+        if not depth:
+            depth = self.DEPTH
+        if not timeout:
+            timeout = self.TIMEOUT
+        if not prefix:
+            prefix = self.PREFIX
+        common_prefixes = (open(self.PREFIX_FILE, "r").read()).split('\n')
         common_prefixes.pop()
-        word_list = (open(WORD_LIST, "r").read()).rsplit()
-        try:
-            for word in word_list[indice:]:
+        output = open("output.txt", "a")
+        if option == "bruteforce":
+            for b in self.BruteForce(depth):
                 for i in common_prefixes:
-                    parsed = (prefix + " " + i + " " + word).replace(" ", "%20")
-                    for suggestion in GetSuggestions(parsed, timeout):
+                    parsed = (prefix + i + " " + b).replace(" ", "%20")
+                    for suggestion in self.Query(parsed, timeout):
                         print(suggestion)
                         output.write(suggestion + '\n')
-                indice += 1
-        except KeyboardInterrupt:
-            print(indice)
-    output.close()
+        elif option == "wordlist":
+            word_list = (open(self.WORD_LIST, "r").read()).rsplit()
+            try:
+                for word in word_list[indice:]:
+                    for i in common_prefixes:
+                        parsed = (prefix + " " + i + " " + word).replace(" ", "%20")
+                        for suggestion in self.Query(parsed, timeout):
+                            print(suggestion)
+                            output.write(suggestion + '\n')
+                    indice += 1
+            except KeyboardInterrupt:
+                print(indice)
+        output.close()
 
-main("wordlist", DEPTH, TIMEOUT, 2)
+def main():
+    g = GoogleQuery()
+    g.GetSuggestions(65)
 
-#BruteForce(2)
-#print(GetSuggestions(""))
+if __name__ == '__main__':
+    main()
